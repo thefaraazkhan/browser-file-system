@@ -1,111 +1,97 @@
 import Box from '@mui/material/Box'
-import { DataGrid } from '@mui/x-data-grid'
 import data from "../data.json"
-import customData from "../customData.js"
 import { useMemo, useState } from 'react'
 import FolderIcon from '@mui/icons-material/Folder'
-
-// const columns: GridColDef<(typeof rows)[number]>[] = [
-//     { field: "Name", headerName: "Name" },
-//     { field: "Type", headerName: "Type" },
-//     { field: "Size", headerName: "Size" },
-// ]
-
-const columns: GridColDef<(typeof rows)[number]>[] = [
-    { field: 'name', headerName: 'Name' },
-    { field: 'size', headerName: 'Size' },
-    { field: 'type', headerName: 'Type' },
-    { field: 'modified', headerName: 'Modified Date', width: 250 },
-]
-
-// const rows = [
-//     { id: 1, lastName: 'Snow', firstName: 'Jon', age: 14 },
-//     { id: 2, lastName: 'Lannister', firstName: 'Cersei', age: 31 },
-//     { id: 3, lastName: 'Lannister', firstName: 'Jaime', age: 31 },
-//     { id: 4, lastName: 'Stark', firstName: 'Arya', age: 11 },
-//     { id: 5, lastName: 'Targaryen', firstName: 'Daenerys', age: null },
-//     { id: 6, lastName: 'Melisandre', firstName: null, age: 150 },
-//     { id: 7, lastName: 'Clifford', firstName: 'Ferrara', age: 44 },
-//     { id: 8, lastName: 'Frances', firstName: 'Rossini', age: 36 },
-//     { id: 9, lastName: 'Roxie', firstName: 'Harvey', age: 65 },
-// ]
+import { DataGrid, GridColDef, GridPagination, GridRowParams } from "@mui/x-data-grid";
+import FilePresentIcon from "@mui/icons-material/FilePresent";
+import Toolbar from '../components/Toolbar'
+import BreadCrumb from '../components/BreadCrumb'
+import { Switch } from '@mui/material'
 
 type TEntry = {
-    name: string
-    children?: TEntry[]
-}
-
-function Entry({ entry, depth }: { entry: TEntry, depth: number }) {
-    return <div>
-        {entry.name}
-        {entry.children && '>'}
-        <div style={{ paddingLeft: `${depth * 15}px` }}>
-            {entry.children?.map((entry) => (
-                <Entry key={entry.name} entry={entry} depth={depth + 1} />
-            ))}
-        </div>
-    </div>
-}
+    name: string;
+    children?: TEntry[];
+    size?: string;
+    type: string;
+  };
 
 export default function FileBrowser() {
-    const [currentFolder, setCurrentFolder] = useState(customData.name)
-    // const [currentFolder, setCurrentFolder] = useState(main)
+    const [currentFolder, setCurrentFolder] = useState(["root", "app"])
 
-    // const jsonData = data
-    // if (currentFolder === "app") {
-    //     console.log(jsonData)
-    // }
+    const traverseFolders = (dir: TEntry): TEntry | undefined => {
+        if (!dir) return
 
-    const newRows = useMemo(() => {
-        const fileData = customData
-        console.log(fileData, "THIS IS FILE DATA")
-        const entries = currentFolder === "app" ? fileData : fileData.children.map((ent) => {
-            // console.log(ent)
-            if (ent.name === currentFolder) {
-                return ent
-            } else {
-                return ent
-            }
-        })
+        if (dir.name === currentFolder[currentFolder.length - 1]) return dir
 
-        const rows = []
-
-        if (entries.children) {
-            for (const ent of entries.children) {
-                console.log(ent)
-                rows.push({
-                    id: ent.name,
-                    name: ent.name,
-                    size: ent.type === "folder" ? null : ent.size,
-                    type: ent.type,
-                    modified: "2024-04-02 20:30:05"
-                })
+        if (dir.children) {
+            for (const child of dir.children) {
+                if (child.type === "folder") {
+                    const result = traverseFolders(child)
+                    if (result) return result
+                }
             }
         }
-        return rows
-
-    }, [currentFolder])
-
-
-    // const newRows = [
-    //     { id: 1, name: 'Snow', size: 'Jon', type: 'folder', modified: 14 },
-    //     { id: 2, name: 'Lannister', size: 'Cersei', type: 'folder', modified: 31 },
-    //     { id: 3, name: 'Lannister', size: 'Jaime', type: 'folder', modified: 31 },
-    // ]
-
-    const traverseFolders = (destination) => {
-        if ()
     }
 
+    const rows = useMemo(() => {
+        const values =
+          currentFolder[currentFolder.length - 1] === "root"
+            ? Object.values(data)
+            : traverseFolders(data.app)?.children || [];
+    
+        const rows = [];
+    
+        for (const value of values) {
+          rows.push({
+            id: value.name,
+            name: value?.name || "",
+            type: value?.type || "",
+            // @ts-expect-error : size
+            size: value.type === "folder" ? "-" : value?.size || "",
+            modified: "2024-04-02 21:42:03"
+          });
+        }
+    
+        return rows;
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [currentFolder]);
+
+    const columns: GridColDef<(typeof rows)[number]>[] = [
+        {
+          field: "name",
+          headerName: "Name",
+          renderCell: (params) => (
+            <div className="flex gap-1 items-center">
+              {params.row.type === "folder" ? <FolderIcon style={{ color: 'orange' }} /> : <FilePresentIcon style={{ color: 'grey' }} />}
+              <span>{params.value}</span>
+            </div>
+          ),
+    
+          minWidth: 200,
+        },
+        { field: "type", headerName: "Type" },
+        { field: "size", headerName: "Size" },
+        { field: "modified", headerName: "Modified Date", minWidth: 250},
+      ];
 
     return (
-        <>
+        <div >
+        <div className="px-3 py-2">
+        <BreadCrumb
+          breadCrumbs={currentFolder}
+          setBreadCrumbs={setCurrentFolder}
+        />
+      </div>
+        <div className='border-t border-gray-200 border-r m-1'>
+          <Toolbar />
+        </div>
             <Box sx={{ height: 400, width: '100%' }}>
                 <DataGrid
                     style={{
                         borderColor: "rgba(229,231, 235, 1)",
                     }}
-                    rows={newRows}
+                    className='cursor-pointer'
+                    rows={rows}
                     columns={columns}
                     initialState={{
                         pagination: {
@@ -114,25 +100,32 @@ export default function FileBrowser() {
                             },
                         },
                     }}
-                    pageSizeOptions={[5]}
+                    slots={{
+                      footer: () => (
+                        <div className='border-t border-gray-200'>
+                          <Box sx={{ display: "flex", alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div>
+                            <Switch defaultChecked />
+                            <span className="text-sm font-medium text-gray-700">Dense Padding</span>
+                            </div>
+                          <GridPagination />
+                          </Box>
+                          
+                        </div>
+                      ),
+                    }}
+                    // pageSizeOptions={[5]}
+                    pageSizeOptions={[5, 10, 25]}
                     checkboxSelection
                     disableRowSelectionOnClick
-                    onRowClick={(params: GridRowParams) => {
-                        console.log(params.row.name, "has been clicked")
-                        // console.log()
-                        params.row.type === "folder" && (() => traverseFolders(params.row.name))
-                        console.log("Current folder changed to", currentFolder)
-                    }
-                    }
+                    onRowClick={(params: GridRowParams) =>
+                        params.row.type === "folder" &&
+                        setCurrentFolder((p) => [...p, params.row.name])
+                      }
                 />
             </Box>
-
-            <div>
-                {customData.children.map((entry) => (
-                    <Entry key={entry.name} entry={entry} depth={1} />
-                ))}
-            </div>
-        </>
+            
+        </div>
     )
 }
 
